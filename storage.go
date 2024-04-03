@@ -2,6 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
+
+	"github.com/joho/godotenv"
 
 	_ "github.com/lib/pq"
 )
@@ -18,7 +22,14 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	constStr := "user=postgres dbname=go-bank password=Herrpep1*1996 sslmode=disable"
+	envFile, _ := godotenv.Read(".env")
+	password := envFile["DB_PASSWORD"]
+
+	if password == "" {
+		return nil, errors.New("missing env variable DB_PASSWORD")
+	}
+	constStr := fmt.Sprintf("user=postgres dbname=go-bank password=%s sslmode=disable", password)
+
 	db, err := sql.Open("postgres", constStr)
 	if err != nil {
 		return nil, err
