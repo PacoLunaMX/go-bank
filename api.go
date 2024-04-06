@@ -99,6 +99,7 @@ func NewAPIServer(listenAddr string, storage Storage) *APIServer {
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleGetAccount), s.store))
@@ -119,6 +120,25 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	}
 	return fmt.Errorf("method not allowed %s", r.Method)
 
+}
+
+func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+
+		var req LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return err
+		}
+
+		_, err := s.store.GetAccountByNumber(int(req.Number))
+		if err != nil {
+			return err
+		}
+
+		return WriteJSON(w, http.StatusOK, req)
+	}
+
+	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
 func (s *APIServer) handleGetAccounts(w http.ResponseWriter, _ *http.Request) error {
@@ -163,19 +183,22 @@ func createJWT(account *Account) (string, error) {
 
 }
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	createAccountReq := new(CreateAccountRequest)
-	if err := json.NewDecoder(r.Body).Decode(createAccountReq); err != nil {
+	req := new(CreateAccountRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
 	}
-	account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+	account, err := NewAccount(
+		req.FirstName,
+		req.LastName,
+		req.Password,
+	)
+	if err != nil {
+		return err
+	}
 	if err := s.store.CreateAccount(account); err != nil {
 		return err
 	}
 
-	_, err := createJWT(account)
-	if err != nil {
-		return nil
-	}
 	return WriteJSON(w, http.StatusOK, account)
 
 }
