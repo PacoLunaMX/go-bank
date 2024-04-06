@@ -28,7 +28,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// seed stuff
 	seedAccounts(store)
 	server := NewAPIServer(":3000", store)
 	server.Run()
